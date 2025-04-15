@@ -37,6 +37,9 @@ let persons = [
       "number": "39-23-6423122"
     }
 ]
+app.get('/', (request, response) => { 
+    response.send("Backend is running")
+})
 
 //get total number of persons
 app.get('/info', (request, response) => {
