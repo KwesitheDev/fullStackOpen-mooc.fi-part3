@@ -20,28 +20,6 @@ app.use(express.json())
 app.use(morgan(':method :url :status :res[content-length] - :response-time ms :body'))
 
 
-/*let persons = [
-    { 
-      "id": "1",
-      "name": "Arto Hellas", 
-      "number": "040-123456"
-    },
-    { 
-      "id": "2",
-      "name": "Ada Lovelace", 
-      "number": "39-44-5323523"
-    },
-    { 
-      "id": "3",
-      "name": "Dan Abramov", 
-      "number": "12-43-234345"
-    },
-    { 
-      "id": "4",
-      "name": "Mary Poppendieck", 
-      "number": "39-23-6423122"
-    }
-]*/
 app.get('/', (request, response) => { 
     response.send("Backend is running")
 })
@@ -54,14 +32,32 @@ app.get('/', (request, response) => {
     response.send(responseText)
 })*/
 
-app.get('/api/persons', (request, response) => {
+app.get('/api/persons', (request, response, next) => {
     Person.find({})
         .then(persons => {
         response.json(persons)
-        }).catch(error => {
-            console.error('Error fetching persons:', error);
-            response.status(500).json({ error: 'internal server error' });
-    })
+        }).catch(error => next(error))
+})
+//Error HAndling, with get ID
+app.get('/api/persons/:id',(req,res,next)=>{
+    Person.findById(req.params.id)
+        .then(person => {
+            if (person){
+                res.json(person)
+            } else {
+                res.status(404).json.end()
+            }
+            
+            }).catch(error=>next(error))
+})
+
+//deleting person
+app.delete('/api/persons/:id',(request, response,next)=>{
+    Person.findByIdAndDelete(request.params.id)
+        .then(result=>{
+            response.status(204).end()
+        })
+    .catch(error=>next(error))
 })
 
 //get specific person
@@ -84,7 +80,7 @@ app.delete('/api/persons/:id', (request, response) => {
 
 
 //post request
-app.post('/api/persons', (request, response) => {
+app.post('/api/persons', (request, response,next) => {
     const body = request.body
     if(!body.name || !body.number) {
         return response.status(400).json({
@@ -107,12 +103,24 @@ app.post('/api/persons', (request, response) => {
         .then(savedPerson=>{
         response.json(savedPerson)
         })
-        .catch(error => {
-            response.status(500).json({ error: 'something went wrong' });
-        });
+        .catch(error => next(error));
     
 })
 
+// Error handler middleware
+const errorHandler =()=>(error, request, response, next) => {
+    console.error(error.message);
+
+    if (error.name === 'CastError' && error.kind === 'ObjectId') {
+        return response.status(400).send({ error: 'malformatted id' });
+    } else if (error.name === 'ValidationError') {
+        return response.status(400).json({ error: error.message });
+    }
+
+    response.status(500).json({ error: 'internal server error' });
+};
+
+app.use(errorHandler());
 const PORT = process.env.PORT;
 
 app.listen(PORT, () => {
