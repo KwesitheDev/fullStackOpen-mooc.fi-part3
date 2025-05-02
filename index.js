@@ -88,24 +88,57 @@ app.post('/api/persons', (request, response,next) => {
         })
     }
   
-    //name already exists
-    /*if (persons.some(person => person.name === body.name)) {
-        return response.status(400).json({ error: "Name must be unique" })
-    }*/
+   
 
-    const person = new Person ({
-        name: body.name,
-        number: body.number,
-    })
+    //name already exist
+    Person.findOne({name: body.name})
+        .then(existingPerson => {
+            if (existingPerson) {
+            console.log("Person exists in db")
+            existingPerson.number = body.number
+            return existingPerson.save().then(updatedPerson => {
+                response.json(updatedPerson)
+            })
+            } else {
+                
+            const person = new Person ({
+                name: body.name,
+                number: body.number,
+            })
 
-
-    person.save()
+            
+           person.save()
         .then(savedPerson=>{
         response.json(savedPerson)
         })
         .catch(error => next(error));
+     
+        }
+    })
     
 })
+app.put('/api/persons/:id', (request, response, next) => {
+    const { number } = request.body;
+
+    if (!number) {
+        return response.status(400).json({ error: 'number missing' });
+    }
+
+    Person.findByIdAndUpdate(
+        request.params.id,
+        { number },
+        { new: true, runValidators: true, context: 'query' }
+    )
+    .then(updatedPerson => {
+        if (updatedPerson) {
+            response.json(updatedPerson);
+        } else {
+            response.status(404).end();
+        }
+    })
+    .catch(error => next(error));
+});
+
 
 // Error handler middleware
 const errorHandler =()=>(error, request, response, next) => {
